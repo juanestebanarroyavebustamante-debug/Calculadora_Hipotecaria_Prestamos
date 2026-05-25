@@ -2,7 +2,7 @@
 
 Herramienta personal para simular y comparar créditos hipotecarios en pesos colombianos (COP). Funciona 100% en el navegador, sin backend ni dependencias de build.
 
-🔗 **[Abrir calculadora](https://TU_USUARIO.github.io/TU_REPOSITORIO/)**
+🔗 **[Abrir calculadora](https://juanestebanarroyavebustamante-debug.github.io/Calculadora_Hipotecaria_Prestamos/)**
 
 ---
 
