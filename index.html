@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calculadora de Crédito Hipotecario</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <style>
+    /* ── Variables y reset ── */
+    :root {
+      --bg:       #f5f4f0;
+      --surface:  #ffffff;
+      --border:   #d8d7d0;
+      --text:     #1a1a18;
+      --muted:    #6b6b66;
+      --t1:       #3266ad;
+      --t2:       #d87a2a;
+      --success:  #3a8a4a;
+      --danger:   #c03030;
+      --info-bg:  #e6f1fb;
+      --info-txt: #185fa5;
+      --radius:   10px;
+      --radius-sm: 6px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg:       #1c1c1a;
+        --surface:  #252523;
+        --border:   #3a3a36;
+        --text:     #e8e7e2;
+        --muted:    #8a8a84;
+        --info-bg:  #0c2e52;
+        --info-txt: #7ab8f0;
+      }
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 14px;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    /* ── Layout principal ── */
+    .contenedor {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 1.5rem 1rem 3rem;
+    }
+    h1 {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 1.25rem;
+    }
+    h2 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: .75rem;
+      color: var(--text);
+    }
+    /* ── Secciones / tarjetas ── */
+    .seccion {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      margin-bottom: 1rem;
+    }
+    /* ── Grillas ── */
+    .fila-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .fila-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+    @media (max-width: 600px) {
+      .fila-2, .fila-3 { grid-template-columns: 1fr; }
+    }
+    /* ── Campos de formulario ── */
+    .campo {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    label {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 500;
+    }
+    input[type="number"],
+    input[type="text"] {
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 6px 10px;
+      font-size: 14px;
+      background: var(--surface);
+      color: var(--text);
+      width: 100%;
+      transition: border-color .15s;
+    }
+    input[type="number"]:focus,
+    input[type="text"]:focus {
+      outline: none;
+      border-color: var(--t1);
+    }
+    input[type="range"] {
+      flex: 1;
+      accent-color: var(--t1);
+      cursor: pointer;
+    }
+    .fila-slider {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .valor-badge {
+      font-size: 13px;
+      font-weight: 500;
+      min-width: 60px;
+      text-align: right;
+    }
+    .sub-valor {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+    /* ── Botones ── */
+    button {
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 12px;
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: transparent;
+      color: var(--muted);
+      padding: 4px 10px;
+      transition: background .15s, color .15s;
+    }
+    button:hover { background: var(--bg); }
+    button.activo-t1 {
+      background: var(--info-bg);
+      color: var(--info-txt);
+      border-color: transparent;
+    }
+    button.activo-verde {
+      background: #e8f8e8;
+      color: #2a7a3a;
+      border-color: transparent;
+    }
+    .btn-accion {
+      padding: 6px 14px;
+      font-size: 13px;
+    }
+    /* ── Seguros ── */
+    .fila-seg {
+      display: grid;
+      grid-template-columns: 1fr 120px 1fr;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .seg-tipo { display: flex; gap: 4px; }
+    .seg-tipo button { flex: 1; font-size: 11px; }
+    /* ── Abonos ── */
+    .abono-item {
+      display: grid;
+      grid-template-columns: 80px 1fr 160px 30px;
+      gap: 8px;
+      align-items: end;
+      margin-bottom: 8px;
+    }
+    .abono-tipo { display: flex; gap: 3px; }
+    .abono-tipo button { flex: 1; font-size: 10px; padding: 3px 4px; }
+    .btn-eliminar {
+      font-size: 16px;
+      padding: 0 6px;
+      line-height: 28px;
+      color: var(--muted);
+    }
+    /* ── Desglose de cuota ── */
+    .desglose {
+      display: flex;
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      margin-top: 8px;
+      font-size: 11px;
+    }
+    .desglose-item {
+      flex: 1;
+      padding: 6px 8px;
+      text-align: center;
+      border-right: 0.5px solid var(--border);
+    }
+    .desglose-item:last-child { border-right: none; }
+    .desglose-item.resaltado {
+      background: var(--info-bg);
+    }
+    .d-etiqueta { color: var(--muted); margin-bottom: 2px; }
+    .d-valor { font-weight: 600; font-size: 13px; }
+    .desglose-item.resaltado .d-etiqueta,
+    .desglose-item.resaltado .d-valor { color: var(--info-txt); }
+    /* ── Métricas ── */
+    .metricas-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 1rem;
+    }
+    .metrica-card {
+      background: var(--bg);
+      border-radius: var(--radius-sm);
+      padding: .75rem 1rem;
+    }
+    .metrica-card.t1 { border-left: 3px solid var(--t1); }
+    .metrica-card.t2 { border-left: 3px solid var(--t2); }
+    .m-etiqueta { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+    .m-valor { font-size: 22px; font-weight: 600; }
+    .m-sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+    .m-sub.verde { color: var(--success); }
+    .m-sub.rojo  { color: var(--danger); }
+    .barra-prog {
+      height: 5px;
+      border-radius: 3px;
+      background: var(--border);
+      margin-top: 6px;
+      overflow: hidden;
+    }
+    .barra-relleno { height: 100%; border-radius: 3px; }
+    /* ── Pestañas ── */
+    .pestanas {
+      display: flex;
+      border-bottom: 0.5px solid var(--border);
+      margin-bottom: 1rem;
+    }
+    .pestana {
+      padding: 8px 18px;
+      font-size: 13px;
+      cursor: pointer;
+      border: none;
+      border-radius: 0;
+      border-bottom: 2px solid transparent;
+      color: var(--muted);
+      background: transparent;
+    }
+    .pestana:hover { background: transparent; color: var(--text); }
+    .pestana.activa {
+      border-bottom-color: var(--t1);
+      color: var(--text);
+      font-weight: 600;
+    }
+    .contenido-tab { display: none; }
+    .contenido-tab.activo { display: block; }
+    /* ── Leyenda de gráficas ── */
+    .leyenda {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .leyenda span { display: flex; align-items: center; gap: 5px; }
+    .leyenda-punto {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      display: inline-block;
+    }
+    /* ── Resumen comparativo ── */
+    .resumen-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    .res-card {
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: .75rem 1rem;
+    }
+    .res-card.t1 { border-top: 3px solid var(--t1); }
+    .res-card.t2 { border-top: 3px solid var(--t2); }
+    .res-titulo {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: .5rem;
+    }
+    .res-fila {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+      font-size: 13px;
+      border-bottom: 0.5px solid var(--border);
+    }
+    .res-fila:last-child { border-bottom: none; font-weight: 600; }
+    /* ── Tabla de amortización ── */
+    .tbl-contenedor {
+      max-height: 420px;
+      overflow-y: auto;
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    th {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      text-align: right;
+      padding: 7px 10px;
+      border-bottom: 0.5px solid var(--border);
+      position: sticky;
+      top: 0;
+      background: var(--surface);
+      z-index: 1;
+    }
+    th:first-child { text-align: center; }
+    td {
+      text-align: right;
+      padding: 5px 10px;
+      border-bottom: 0.5px solid var(--border);
+    }
+    td:first-child { text-align: center; color: var(--muted); }
+    tr.con-abono td { background: rgba(40, 160, 80, .07); }
+    tr:last-child td { border-bottom: none; }
+    .fila-exportar { display: flex; gap: 8px; margin-top: 10px; }
+  </style>
+</head>
+<body>
+<div class="contenedor">
+  <h1>Calculadora de crédito hipotecario</h1>
+
+  <!-- ── Parámetros ── -->
+  <div class="seccion">
+    <h2>Parámetros del crédito</h2>
+    <div class="fila-2" style="margin-bottom:1rem">
+      <div class="campo">
+        <label>Valor del inmueble ($)</label>
+        <input type="text" id="vInmueble" value="300.000.000" inputmode="numeric">
+      </div>
+      <div class="campo">
+        <label>Cuota inicial (%)</label>
+        <input type="number" id="sPct" value="20" min="10" max="50" step="1">
+        <div class="sub-valor" id="oCI">= $60.000.000</div>
+      </div>
+    </div>
+    <div class="fila-3">
+      <div class="campo">
+        <label>Tasa efectiva anual 1 (%)</label>
+        <input type="number" id="sTEA1" value="12" min="0.1" max="50" step="0.1">
+      </div>
+      <div class="campo">
+        <label>Tasa efectiva anual 2 (%)</label>
+        <input type="number" id="sTEA2" value="14" min="0.1" max="50" step="0.1">
+      </div>
+      <div class="campo">
+        <label>Plazo (años)</label>
+        <input type="number" id="sPlazo" value="15" min="1" max="30" step="1">
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Seguros ── -->
+  <div class="seccion">
+    <h2>Seguros mensuales</h2>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:.75rem">
+      Los seguros se suman a la cuota pero no reducen capital ni afectan la amortización.
+    </div>
+    <div id="contenedor-seguros"></div>
+  </div>
+
+  <!-- ── Abonos extra ── -->
+  <div class="seccion">
+    <h2>Abonos extra (aplican sobre Tasa 1)</h2>
+    <div id="contenedor-abonos"></div>
+    <button class="btn-accion" onclick="agregarAbono()">+ Agregar abono</button>
+  </div>
+
+  <!-- ── Métricas resumen ── -->
+  <div class="seccion">
+    <div id="salida-metricas"></div>
+  </div>
+
+  <!-- ── Pestañas ── -->
+  <div class="pestanas">
+    <button class="pestana activa" onclick="cambiarTab('grafica', this)">Gráfica</button>
+    <button class="pestana" onclick="cambiarTab('resumen', this)">Resumen</button>
+    <button class="pestana" onclick="cambiarTab('tabla', this)">Tabla de amortización</button>
+  </div>
+
+  <!-- Tab: Gráfica -->
+  <div class="contenido-tab activo" id="tab-grafica">
+    <div class="leyenda" id="leyenda-grafica1"></div>
+    <div style="position:relative;width:100%;height:280px">
+      <canvas id="grafica1" role="img" aria-label="Evolución del saldo del crédito"></canvas>
+    </div>
+    <div class="leyenda" style="margin-top:1rem" id="leyenda-grafica2"></div>
+    <div style="position:relative;width:100%;height:220px;margin-top:8px">
+      <canvas id="grafica2" role="img" aria-label="Composición mensual de la cuota capital vs interés"></canvas>
+    </div>
+  </div>
+
+  <!-- Tab: Resumen -->
+  <div class="contenido-tab" id="tab-resumen">
+    <div id="salida-resumen"></div>
+  </div>
+
+  <!-- Tab: Tabla -->
+  <div class="contenido-tab" id="tab-tabla">
+    <div class="tbl-contenedor">
+      <table id="tabla-amort">
+        <thead></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="fila-exportar">
+      <button class="btn-accion" onclick="exportarCSV()">Descargar CSV</button>
+      <button class="btn-accion" onclick="exportarPDF()">Ver / Guardar PDF</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ─────────────────────────────────────────────
+     Utilidades de formato
+  ───────────────────────────────────────────── */
+  const fmt  = v => '$' + Math.round(v).toLocaleString('es-CO');
+  const fmtN = v => Math.round(v).toLocaleString('es-CO');
+  /* Convierte meses a años con 1 decimal, ej: 113 → "9,4 años" */
+  const fmtAnos = m => (m / 12).toFixed(1).replace('.', ',') + ' años';
+
+  /* ─────────────────────────────────────────────
+     Estado global
+  ───────────────────────────────────────────── */
+  let instGrafica1 = null;
+  let instGrafica2 = null;
+  let abonos = [];
+  let contadorAbono = 0;
+
+  /* ─────────────────────────────────────────────
+     Definición de seguros
+  ───────────────────────────────────────────── */
+  const estadoSeguros = [
+    { id: 'segVida', etiqueta: 'Seguro de vida',              tipo: 'pct', valor: 0.03 },
+    { id: 'segInc',  etiqueta: 'Seguro incendio / todo riesgo', tipo: 'pct', valor: 0.02 },
+    { id: 'segOtro', etiqueta: 'Otro / administración',       tipo: 'fijo', valor: 0    }
+  ];
+
+  /* ─────────────────────────────────────────────
+     Renderizar seguros
+  ───────────────────────────────────────────── */
+  function renderizarSeguros() {
+    const c = document.getElementById('contenedor-seguros');
+    c.innerHTML = '';
+    estadoSeguros.forEach((s, i) => {
+      const esFijo = s.tipo === 'fijo';
+
+      /* ── Columna 1: etiqueta ── */
+      const colLabel = document.createElement('label');
+      colLabel.style.fontSize = '12px';
+      colLabel.textContent = s.etiqueta;
+
+      /* ── Columna 2: botones tipo ── */
+      const colTipo = document.createElement('div');
+      colTipo.className = 'seg-tipo';
+      const btnPct  = document.createElement('button');
+      btnPct.textContent = '% saldo';
+      if (s.tipo === 'pct') btnPct.classList.add('activo-t1');
+      btnPct.onclick = () => setSegTipo(i, 'pct');
+      const btnFijo = document.createElement('button');
+      btnFijo.textContent = '$ fijo';
+      if (s.tipo === 'fijo') btnFijo.classList.add('activo-t1');
+      btnFijo.onclick = () => setSegTipo(i, 'fijo');
+      colTipo.appendChild(btnPct);
+      colTipo.appendChild(btnFijo);
+
+      /* ── Columna 3: input + unidad ── */
+      const colInput = document.createElement('div');
+      colInput.style.cssText = 'display:flex;align-items:center;gap:4px';
+
+      const inp = document.createElement('input');
+      inp.id = 'inp_' + s.id;
+      inp.style.width = '100%';
+
+      if (esFijo) {
+        inp.type = 'text';
+        inp.inputMode = 'numeric';
+        inp.value = Math.round(s.valor).toLocaleString('es-CO');
+        inp.addEventListener('focus', function () {
+          this.value = this.value.replace(/[.]/g, '');
+        });
+        inp.addEventListener('blur', function () {
+          const n = parseInt(this.value.replace(/[.]/g, '').replace(/[^0-9]/g, ''), 10);
+          this.value = isNaN(n) ? '0' : n.toLocaleString('es-CO');
+          setSegValor(i, isNaN(n) ? 0 : n);
+        });
+        inp.addEventListener('input', function () {
+          const n = parseInt(this.value.replace(/[.]/g, '').replace(/[^0-9]/g, '') || '0', 10);
+          setSegValor(i, n);
+        });
+      } else {
+        inp.type = 'number';
+        inp.inputMode = 'decimal';
+        inp.step = '0.001';
+        inp.value = s.valor;
+        inp.addEventListener('input', function () { setSegValor(i, this.value); });
+      }
+
+      const unidad = document.createElement('span');
+      unidad.style.cssText = 'font-size:11px;color:var(--muted)';
+      unidad.textContent = esFijo ? '$/mes' : '%/mes';
+
+      colInput.appendChild(inp);
+      colInput.appendChild(unidad);
+
+      /* ── Ensamblar fila ── */
+      const fila = document.createElement('div');
+      fila.className = 'fila-seg';
+      fila.appendChild(colLabel);
+      fila.appendChild(colTipo);
+      fila.appendChild(colInput);
+      c.appendChild(fila);
+    });
+  }
+
+  function setSegTipo(i, tipo) {
+    estadoSeguros[i].tipo = tipo;
+    renderizarSeguros();
+    recalcular();
+  }
+
+  function setSegValor(i, v) {
+    estadoSeguros[i].valor = parseFloat(v) || 0;
+    recalcular();
+  }
+
+  /* ─────────────────────────────────────────────
+     Seguros: calcular monto para un saldo dado
+  ───────────────────────────────────────────── */
+  function calcularSeguro(s, saldo) {
+    return s.tipo === 'pct' ? saldo * (s.valor / 100) : s.valor;
+  }
+
+  function calcularSegurosTotal(saldo) {
+    return estadoSeguros.reduce((acc, s) => acc + calcularSeguro(s, saldo), 0);
+  }
+
+  /* ─────────────────────────────────────────────
+     Abonos extra
+  ───────────────────────────────────────────── */
+  function agregarAbono() {
+    const id = contadorAbono++;
+    abonos.push({ id, cuota: 12, monto: 5000000, tipo: 'unico' });
+    renderizarAbonos();
+    recalcular();
+  }
+
+  function eliminarAbono(id) {
+    abonos = abonos.filter(a => a.id !== id);
+    renderizarAbonos();
+    recalcular();
+  }
+
+  function setAbonoTipo(id, tipo) {
+    const a = abonos.find(x => x.id === id);
+    if (a) { a.tipo = tipo; renderizarAbonos(); recalcular(); }
+  }
+
+  function renderizarAbonos() {
+    const c = document.getElementById('contenedor-abonos');
+    if (abonos.length === 0) {
+      c.innerHTML = '<div style="font-size:12px;color:var(--muted);margin-bottom:8px">Sin abonos extra configurados.</div>';
+      return;
+    }
+    c.innerHTML = abonos.map(a => `
+      <div class="abono-item">
+        <div class="campo">
+          <label>Cuota #</label>
+          <input type="number" value="${a.cuota}" min="1"
+            onchange="abonos.find(x=>x.id===${a.id}).cuota=+this.value;recalcular()">
+        </div>
+        <div class="campo">
+          <label>Monto ($)</label>
+          <input type="text" inputmode="numeric" value="${a.monto.toLocaleString('es-CO')}"
+            onfocus="this.value=this.value.replace(/[.]/g,'')"
+            onblur="const n=parseInt(this.value.replace(/[.]/g,'').replace(/[^0-9]/g,''),10);this.value=isNaN(n)?'0':n.toLocaleString('es-CO');abonos.find(x=>x.id===${a.id}).monto=isNaN(n)?0:n;recalcular()"
+            oninput="abonos.find(x=>x.id===${a.id}).monto=parseInt(this.value.replace(/[.]/g,'').replace(/[^0-9]/g,'')||'0',10);recalcular()">
+        </div>
+        <div class="campo">
+          <label>Tipo</label>
+          <div class="abono-tipo">
+            <button onclick="setAbonoTipo(${a.id},'unico')" class="${a.tipo==='unico'?'activo-verde':''}">Único</button>
+            <button onclick="setAbonoTipo(${a.id},'desde')" class="${a.tipo==='desde'?'activo-verde':''}">Desde</button>
+            <button onclick="setAbonoTipo(${a.id},'anual')" class="${a.tipo==='anual'?'activo-verde':''}">Cada 12m</button>
+          </div>
+        </div>
+        <button class="btn-eliminar" onclick="eliminarAbono(${a.id})">×</button>
+      </div>`).join('');
+  }
+
+  /* Devuelve el abono extra total para la cuota n */
+  function abonoEnCuota(n) {
+    let total = 0;
+    abonos.forEach(a => {
+      if (a.tipo === 'unico'  && a.cuota === n) total += a.monto;
+      if (a.tipo === 'desde'  && n >= a.cuota)  total += a.monto;
+      if (a.tipo === 'anual'  && n >= a.cuota && (n - a.cuota) % 12 === 0) total += a.monto;
+    });
+    return total;
+  }
+
+  /* ─────────────────────────────────────────────
+     Amortización francesa
+     Fórmula cuota: C = P × [i(1+i)^n] / [(1+i)^n − 1]
+     Conversión TEA→mensual: i_m = (1 + TEA)^(1/12) − 1
+  ───────────────────────────────────────────── */
+  function amortizar(capital, tea, nMeses, aplicarAbonos) {
+    const tm = Math.pow(1 + tea / 100, 1 / 12) - 1;
+    /* Cuota fija sistema francés */
+    const cuotaBase = capital * (tm * Math.pow(1 + tm, nMeses)) / (Math.pow(1 + tm, nMeses) - 1);
+    let saldo = capital;
+    let filas = [];
+    let totalPagado = 0;
+    let totalSeguros = 0;
+
+    for (let i = 1; i <= nMeses && saldo > 0.01; i++) {
+      const interes      = saldo * tm;
+      const capitalCuota = cuotaBase - interes;
+      const seg          = calcularSegurosTotal(saldo);
+      const extra        = aplicarAbonos ? abonoEnCuota(i) : 0;
+      const nuevoSaldo   = Math.max(0, saldo - capitalCuota - extra);
+
+      totalPagado  += cuotaBase + seg + extra;
+      totalSeguros += seg;
+
+      filas.push({
+        n: i,
+        cuotaBase,
+        capital: capitalCuota,
+        interes,
+        seg,
+        extra,
+        saldo: nuevoSaldo,
+        tieneAbono: extra > 0
+      });
+
+      saldo = nuevoSaldo;
+      if (saldo <= 0.01) break;
+    }
+
+    return { filas, totalPagado, totalSeguros, meses: filas.length, cuotaBase };
+  }
+
+  /* ─────────────────────────────────────────────
+     Lógica principal de recálculo
+  ───────────────────────────────────────────── */
+  function recalcular() {
+    const V      = parseFloat(document.getElementById('vInmueble').value.replace(/\./g, '').replace(/,/g, '.')) || 300000000;
+    const pct    = parseFloat(document.getElementById('sPct').value)   || 20;
+    const tea1   = parseFloat(document.getElementById('sTEA1').value)  || 12;
+    const tea2   = parseFloat(document.getElementById('sTEA2').value)  || 14;
+    const plazo  = parseInt(document.getElementById('sPlazo').value)   || 15;
+    const CI     = V * (pct / 100);
+    const capital = V - CI;
+    const nMeses  = plazo * 12;
+
+    /* Actualizar badges */
+    document.getElementById('oCI').textContent    = '= ' + fmt(CI);
+
+    /* Calcular los tres escenarios */
+    const r1     = amortizar(capital, tea1, nMeses, true);   /* T1 con abonos */
+    const r1sin  = amortizar(capital, tea1, nMeses, false);  /* T1 sin abonos */
+    const r2     = amortizar(capital, tea2, nMeses, false);  /* T2             */
+
+    /* Seguros mes 1 (sobre saldo inicial = capital) */
+    const seg1Mes1 = calcularSegurosTotal(capital);
+    const cuotaTotal1 = r1.cuotaBase + seg1Mes1;
+    const cuotaTotal2 = r2.cuotaBase + calcularSegurosTotal(capital);
+
+    const ahorro          = r1sin.totalPagado - r1.totalPagado;
+    const mesesReducidos  = r1sin.meses - r1.meses;
+    const difCuota        = cuotaTotal2 - cuotaTotal1;
+    const difTotal        = r2.totalPagado - r1.totalPagado;
+
+    /* ── Métricas ── */
+    document.getElementById('salida-metricas').innerHTML = `
+      <div style="font-size:11px;color:var(--muted);margin-bottom:6px">
+        Capital: ${fmt(capital)} &nbsp;|&nbsp; Cuota base T1: ${fmt(r1.cuotaBase)}
+      </div>
+      <div class="desglose">
+        <div class="desglose-item">
+          <div class="d-etiqueta">Capital+Interés</div>
+          <div class="d-valor">${fmt(r1.cuotaBase)}</div>
+        </div>
+        <div class="desglose-item">
+          <div class="d-etiqueta">Seg. vida</div>
+          <div class="d-valor">${fmt(calcularSeguro(estadoSeguros[0], capital))}</div>
+        </div>
+        <div class="desglose-item">
+          <div class="d-etiqueta">Seg. incendio</div>
+          <div class="d-valor">${fmt(calcularSeguro(estadoSeguros[1], capital))}</div>
+        </div>
+        <div class="desglose-item">
+          <div class="d-etiqueta">Otro</div>
+          <div class="d-valor">${fmt(calcularSeguro(estadoSeguros[2], capital))}</div>
+        </div>
+        <div class="desglose-item resaltado">
+          <div class="d-etiqueta">Cuota total mes 1</div>
+          <div class="d-valor">${fmt(cuotaTotal1)}</div>
+        </div>
+      </div>
+      <div class="metricas-grid">
+        <div class="metrica-card t1">
+          <div class="m-etiqueta">Tasa 1 — cuota total mes 1</div>
+          <div class="m-valor">${fmt(cuotaTotal1)}</div>
+          <div class="m-sub">Total crédito: ${fmt(r1.totalPagado)} &nbsp;·&nbsp; ${fmtAnos(r1.meses)}</div>
+          ${abonos.length > 0 ? `<div class="m-sub verde">Ahorro con abonos: ${fmt(ahorro)} · ${fmtAnos(mesesReducidos)} menos</div>` : ''}
+          <div class="barra-prog"><div class="barra-relleno" style="width:${Math.min(100, ahorro / r1sin.totalPagado * 300)}%;background:var(--t1)"></div></div>
+        </div>
+        <div class="metrica-card t2">
+          <div class="m-etiqueta">Tasa 2 — cuota total mes 1</div>
+          <div class="m-valor">${fmt(cuotaTotal2)}</div>
+          <div class="m-sub">Total crédito: ${fmt(r2.totalPagado)} &nbsp;·&nbsp; ${fmtAnos(r2.meses)}</div>
+          <div class="m-sub rojo">+${fmt(difCuota)}/mes &nbsp;·&nbsp; +${fmt(difTotal)} total vs T1</div>
+          <div class="barra-prog"><div class="barra-relleno" style="width:${Math.min(100, Math.abs(difTotal) / r1.totalPagado * 100)}%;background:var(--t2)"></div></div>
+        </div>
+      </div>`;
+
+    actualizarGraficas(r1, r1sin, r2);
+    actualizarResumen(capital, r1, r1sin, r2, cuotaTotal1, cuotaTotal2, difCuota, difTotal, tea1, tea2);
+    actualizarTabla(r1.filas);
+  }
+
+  /* ─────────────────────────────────────────────
+     Gráficas
+  ───────────────────────────────────────────── */
+  function actualizarGraficas(r1, r1sin, r2) {
+    const maxMeses = Math.max(r1.meses, r1sin.meses, r2.meses);
+    const etiquetas = Array.from({ length: maxMeses }, (_, i) => i + 1);
+
+    const saldo1sin = etiquetas.map((_, i) => (i < r1sin.filas.length ? r1sin.filas[i].saldo : null));
+    const saldo1con = etiquetas.map((_, i) => (i < r1.filas.length   ? r1.filas[i].saldo   : null));
+    const saldo2    = etiquetas.map((_, i) => (i < r2.filas.length   ? r2.filas[i].saldo   : null));
+
+    /* Interés acumulado T1 con abonos */
+    let acum = 0;
+    const intAcum = etiquetas.map((_, i) => {
+      if (i < r1.filas.length) { acum += r1.filas[i].interes; return Math.round(acum); }
+      return null;
+    });
+
+    /* Leyenda gráfica 1 */
+    document.getElementById('leyenda-grafica1').innerHTML = `
+      <span><span class="leyenda-punto" style="background:#3266ad"></span>Saldo T1 sin abonos</span>
+      <span><span class="leyenda-punto" style="background:#5ea85e"></span>Saldo T1 con abonos</span>
+      <span><span class="leyenda-punto" style="background:#d87a2a"></span>Saldo T2</span>
+      <span><span class="leyenda-punto" style="background:#a09090;border:1px dashed #a09090"></span>Interés acum. T1</span>`;
+
+    if (instGrafica1) { instGrafica1.destroy(); }
+    instGrafica1 = new Chart(document.getElementById('grafica1'), {
+      type: 'line',
+      data: {
+        labels: etiquetas,
+        datasets: [
+          { label: 'Saldo T1 sin abonos', data: saldo1sin, borderColor: '#3266ad', backgroundColor: 'transparent', pointRadius: 0, borderWidth: 1.5, tension: 0.3 },
+          { label: 'Saldo T1 con abonos', data: saldo1con, borderColor: '#5ea85e', backgroundColor: 'transparent', pointRadius: 0, borderWidth: 1.5, tension: 0.3, borderDash: [5, 3] },
+          { label: 'Saldo T2',            data: saldo2,    borderColor: '#d87a2a', backgroundColor: 'transparent', pointRadius: 0, borderWidth: 1.5, tension: 0.3 },
+          { label: 'Interés acum. T1',    data: intAcum,   borderColor: '#a09090', backgroundColor: 'transparent', pointRadius: 0, borderWidth: 1,   tension: 0.3, borderDash: [3, 3] }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { maxTicksLimit: 12, color: '#888' } },
+          y: { ticks: { color: '#888', callback: v => v >= 1e6 ? (v / 1e6).toFixed(0) + 'M' : v.toLocaleString() } }
+        }
+      }
+    });
+
+    /* Leyenda gráfica 2 */
+    document.getElementById('leyenda-grafica2').innerHTML = `
+      <span><span class="leyenda-punto" style="background:#3266ad"></span>Capital</span>
+      <span><span class="leyenda-punto" style="background:#e87070"></span>Interés</span>`;
+
+    const datosCapital  = r1.filas.map(f => Math.round(f.capital));
+    const datosInteres  = r1.filas.map(f => Math.round(f.interes));
+    const etqTabla      = r1.filas.map(f => f.n);
+
+    if (instGrafica2) { instGrafica2.destroy(); }
+    instGrafica2 = new Chart(document.getElementById('grafica2'), {
+      type: 'bar',
+      data: {
+        labels: etqTabla,
+        datasets: [
+          { label: 'Capital', data: datosCapital, backgroundColor: '#3266ad', stack: 's' },
+          { label: 'Interés', data: datosInteres, backgroundColor: '#e87070', stack: 's' }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { stacked: true, ticks: { maxTicksLimit: 12, color: '#888' } },
+          y: { stacked: true, ticks: { color: '#888', callback: v => v >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : v.toLocaleString() } }
+        }
+      }
+    });
+  }
+
+  /* ─────────────────────────────────────────────
+     Resumen comparativo
+  ───────────────────────────────────────────── */
+  function actualizarResumen(capital, r1, r1sin, r2, ct1, ct2, difCuota, difTotal, tea1, tea2) {
+    const intT1  = r1.totalPagado  - capital;
+    const intT2  = r2.totalPagado  - capital;
+    const ahorro = r1sin.totalPagado - r1.totalPagado;
+
+    document.getElementById('salida-resumen').innerHTML = `
+      <div class="resumen-grid">
+        <div class="res-card t1">
+          <div class="res-titulo" style="color:var(--t1)">Tasa 1 — ${tea1.toFixed(1)}% E.A.</div>
+          <div class="res-fila"><span>Capital</span><span>${fmt(capital)}</span></div>
+          <div class="res-fila"><span>Intereses totales</span><span>${fmt(intT1)}</span></div>
+          <div class="res-fila"><span>Seguros totales</span><span>${fmt(r1.totalSeguros)}</span></div>
+          <div class="res-fila"><span>Plazo efectivo</span><span>${fmtAnos(r1.meses)}</span></div>
+          ${abonos.length > 0 ? `<div class="res-fila" style="color:var(--success)"><span>Ahorro con abonos</span><span>${fmt(ahorro)}</span></div>` : ''}
+          <div class="res-fila"><span>Total pagado</span><span>${fmt(r1.totalPagado)}</span></div>
+        </div>
+        <div class="res-card t2">
+          <div class="res-titulo" style="color:var(--t2)">Tasa 2 — ${tea2.toFixed(1)}% E.A.</div>
+          <div class="res-fila"><span>Capital</span><span>${fmt(capital)}</span></div>
+          <div class="res-fila"><span>Intereses totales</span><span>${fmt(intT2)}</span></div>
+          <div class="res-fila"><span>Seguros totales</span><span>${fmt(r2.totalSeguros)}</span></div>
+          <div class="res-fila"><span>Plazo efectivo</span><span>${fmtAnos(r2.meses)}</span></div>
+          <div class="res-fila" style="color:var(--danger)"><span>Costo extra vs T1</span><span>+${fmt(difTotal)}</span></div>
+          <div class="res-fila"><span>Total pagado</span><span>${fmt(r2.totalPagado)}</span></div>
+        </div>
+      </div>`;
+  }
+
+  /* ─────────────────────────────────────────────
+     Tabla de amortización
+  ───────────────────────────────────────────── */
+  function actualizarTabla(filas) {
+    const thead = document.querySelector('#tabla-amort thead');
+    const tbody = document.querySelector('#tabla-amort tbody');
+    thead.innerHTML = `
+      <tr>
+        <th style="text-align:center">#</th>
+        <th>Cuota base</th>
+        <th>Capital</th>
+        <th>Interés</th>
+        <th>Seg.</th>
+        <th>Abono extra</th>
+        <th>Saldo</th>
+      </tr>`;
+    tbody.innerHTML = filas.map(f => `
+      <tr class="${f.tieneAbono ? 'con-abono' : ''}">
+        <td>${f.n}</td>
+        <td>${fmt(f.cuotaBase)}</td>
+        <td>${fmt(f.capital)}</td>
+        <td>${fmt(f.interes)}</td>
+        <td>${fmt(f.seg)}</td>
+        <td>${f.extra > 0 ? fmt(f.extra) : '—'}</td>
+        <td>${fmt(f.saldo)}</td>
+      </tr>`).join('');
+  }
+
+  /* ─────────────────────────────────────────────
+     Exportar CSV
+  ───────────────────────────────────────────── */
+  function exportarCSV() {
+    const filas = document.querySelectorAll('#tabla-amort tbody tr');
+    let csv = '#,Cuota base,Capital,Interés,Seguros,Abono extra,Saldo\n';
+    filas.forEach(tr => {
+      /* Remover separadores de miles para CSV numérico */
+      csv += Array.from(tr.cells)
+        .map(td => td.textContent.replace(/\./g, '').replace(/,/g, '.'))
+        .join(',') + '\n';
+    });
+    const enlace = document.createElement('a');
+    enlace.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+    enlace.download = 'amortizacion.csv';
+    enlace.click();
+  }
+
+  /* ─────────────────────────────────────────────
+     Exportar PDF (ventana de impresión)
+  ───────────────────────────────────────────── */
+  function exportarPDF() {
+    const V    = parseFloat(document.getElementById('vInmueble').value.replace(/\./g, '').replace(/,/g, '.')) || 0;
+    const tea1 = parseFloat(document.getElementById('sTEA1').value) || 12;
+    const filas = document.querySelectorAll('#tabla-amort tbody tr');
+    let html = `
+      <html><head><title>Tabla de amortización</title>
+      <style>
+        body { font-family: sans-serif; font-size: 11px; }
+        h3   { margin-bottom: 8px; }
+        table{ width:100%; border-collapse:collapse; }
+        th,td{ border:1px solid #ccc; padding:4px 6px; text-align:right; }
+        th   { background:#eee; font-size:10px; }
+        td:first-child { text-align:center; }
+        tr.con-abono td { background:#e8f8e8; }
+      </style></head><body>
+      <h3>Tabla de amortización — Inmueble ${fmt(V)} — Tasa 1: ${tea1.toFixed(1)}% E.A.</h3>
+      <table>
+        <tr><th>#</th><th>Cuota base</th><th>Capital</th><th>Interés</th><th>Seg.</th><th>Abono extra</th><th>Saldo</th></tr>`;
+    filas.forEach(tr => {
+      const cls = tr.classList.contains('con-abono') ? 'class="con-abono"' : '';
+      html += `<tr ${cls}>${Array.from(tr.cells).map(td => `<td>${td.textContent}</td>`).join('')}</tr>`;
+    });
+    html += '</table></body></html>';
+    const ventana = window.open('', '_blank');
+    if (ventana) {
+      ventana.document.write(html);
+      ventana.document.close();
+      setTimeout(() => ventana.print(), 400);
+    }
+  }
+
+  /* ─────────────────────────────────────────────
+     Cambiar pestaña activa
+  ───────────────────────────────────────────── */
+  function cambiarTab(id, elemento) {
+    document.querySelectorAll('.pestana').forEach(p => p.classList.remove('activa'));
+    document.querySelectorAll('.contenido-tab').forEach(t => t.classList.remove('activo'));
+    elemento.classList.add('activa');
+    document.getElementById('tab-' + id).classList.add('activo');
+  }
+
+  /* ─────────────────────────────────────────────
+     Inicialización y listeners
+  ───────────────────────────────────────────── */
+  renderizarSeguros();
+  renderizarAbonos();
+  recalcular();
+
+  /* Al entrar: quitar separadores para edición libre */
+  document.getElementById('vInmueble').addEventListener('focus', function () {
+    const raw = this.value.replace(/\./g, '').replace(/[^0-9]/g, '');
+    this.value = raw;
+  });
+  /* Al salir: formatear con separadores de miles y recalcular */
+  document.getElementById('vInmueble').addEventListener('blur', function () {
+    const raw = this.value.replace(/\./g, '').replace(/[^0-9]/g, '');
+    const num = parseInt(raw, 10);
+    this.value = isNaN(num) ? '300.000.000' : num.toLocaleString('es-CO');
+    recalcular();
+  });
+  /* Recalcular en tiempo real mientras escribe */
+  document.getElementById('vInmueble').addEventListener('input', recalcular);
+  ['sPct', 'sTEA1', 'sTEA2', 'sPlazo'].forEach(id => {
+    document.getElementById(id).addEventListener('input', recalcular);
+  });
+</script>
+</body>
+</html>
